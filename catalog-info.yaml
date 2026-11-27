@@ -1,0 +1,15 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: dinoue
+  description: S3 reader in dinoue
+  annotations:
+    github.com/project-slug: taisyo7333/dinoue
+    backstage.io/kubernetes-id: dinoue
+    backstage.io/kubernetes-namespace: dinoue
+    janus-idp.io/tekton: dinoue
+    argocd/app-name: dinoue-dinoue
+spec:
+  type: service
+  lifecycle: experimental
+  owner: cluster-admin

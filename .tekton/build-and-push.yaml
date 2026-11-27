@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: dinoue-build-
+  labels:
+    app: dinoue
+    backstage.io/kubernetes-id: dinoue
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[push]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+spec:
+  pipelineSpec:
+    params:
+      - name: IMAGE
+        type: string
+        default: image-registry.openshift-image-registry.svc:5000/dinoue/dinoue:latest
+      - name: APP_NAME
+        type: string
+        default: dinoue
+    workspaces:
+      - name: source
+      - name: git-auth
+    tasks:
+      - name: clone-source
+        taskRef:
+          resolver: cluster
+          params:
+            - name: kind
+              value: task
+            - name: name
+              value: git-clone
+            - name: namespace
+              value: openshift-pipelines
+        params:
+          - name: URL
+            value: "{{ repo_url }}"
+          - name: REVISION
+            value: "{{ revision }}"
+          - name: DELETE_EXISTING
+            value: "true"
+        workspaces:
+          - name: output
+            workspace: source
+          - name: basic-auth
+            workspace: git-auth
+      - name: build
+        runAfter: [clone-source]
+        taskRef:
+          resolver: cluster
+          params:
+            - name: kind
+              value: task
+            - name: name
+              value: buildah
+            - name: namespace
+              value: openshift-pipelines
+        params:
+          - name: IMAGE
+            value: $(params.IMAGE)
+          - name: TLS_VERIFY
+            value: "false"
+        workspaces:
+          - name: source
+            workspace: source
+      - name: rollout
+        runAfter: [build]
+        taskRef:
+          resolver: cluster
+          params:
+            - name: kind
+              value: task
+            - name: name
+              value: openshift-client
+            - name: namespace
+              value: openshift-pipelines
+        params:
+          - name: SCRIPT
+            value: |
+              oc rollout restart deployment/$(params.APP_NAME)
+              oc rollout status deployment/$(params.APP_NAME) --timeout=300s
+  taskRunTemplate:
+    serviceAccountName: pipeline
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+    - name: git-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"
