@@ -4,4 +4,3 @@ Namespace `dinoue` の DEMO アプリです。S3 バケット `dinoue` の `mess
 
 AWS の読み取り権限は Pod の IRSA です。Deployment にはアクセスキーを置きません。
 
-test
